@@ -1,100 +1,114 @@
 //Libs
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 
 //Imports
-import { ColorHistoryItem } from "../../../types"
-import useI18n from "../../../Lib/Hooks/useI18n"
-import styles from "./History.module.css"
+import { ColorHistoryItem } from "../../../types";
+import useI18n from "../../../Lib/Hooks/useI18n";
+import styles from "./History.module.css";
 
 //Main
 function History(): React.JSX.Element {
-  let { t, locale, changeLanguage } = useI18n()
-  let [historyList, setHistoryList] = useState<ColorHistoryItem[]>([])
-  let [activeColor, setActiveColor] = useState<ColorHistoryItem | null>(null)
-  let [toast, setToast] = useState<{ show: boolean; text: string }>({ show: false, text: "" })
-  let [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false)
-  let [theme, setTheme] = useState<string>("system")
-  let [effect, setEffect] = useState<string>("system")
+  let { t, locale, changeLanguage } = useI18n();
+  let [historyList, setHistoryList] = useState<ColorHistoryItem[]>([]);
+  let [activeColor, setActiveColor] = useState<ColorHistoryItem | null>(null);
+  let [toast, setToast] = useState<{ show: boolean; text: string }>({
+    show: false,
+    text: "",
+  });
+  let [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  let [theme, setTheme] = useState<string>("system");
+  let [effect, setEffect] = useState<string>("system");
 
   // Fetch initial history and subscribe to changes
   useEffect(function () {
     window.api.getHistory().then(function (initialHistory) {
-      setHistoryList(initialHistory)
+      setHistoryList(initialHistory);
       if (initialHistory.length > 0) {
-        setActiveColor(initialHistory[0])
+        setActiveColor(initialHistory[0]);
       }
-    })
+    });
 
     window.api.onHistoryUpdated(function (updatedHistory) {
-      setHistoryList(updatedHistory)
-      if (updatedHistory.length > 0) {
-        setActiveColor(function (prev) {
+      setHistoryList(function (prevList) {
+        let isNewColor =
+          updatedHistory.length > 0 &&
+          (prevList.length === 0 ||
+            updatedHistory[0].timestamp > prevList[0].timestamp);
+
+        setActiveColor(function (prevActive) {
+          if (isNewColor) {
+            return updatedHistory[0];
+          }
           if (
-            prev &&
+            prevActive &&
             updatedHistory.some(function (item) {
-              return item.timestamp === prev.timestamp
+              return item.timestamp === prevActive.timestamp;
             })
           ) {
-            return prev
+            return prevActive;
           }
-          return updatedHistory[0]
-        })
-      } else {
-        setActiveColor(null)
-      }
-    })
-  }, [])
+          return updatedHistory.length > 0 ? updatedHistory[0] : null;
+        });
+
+        return updatedHistory;
+      });
+    });
+  }, []);
 
   // Load current settings when settings screen is opened
   useEffect(
     function () {
-      let savedTheme = localStorage.getItem("colorpicker-theme") || "system"
-      let savedEffect = localStorage.getItem("colorpicker-effect") || "system"
-      setTheme(savedTheme)
-      setEffect(savedEffect)
+      let savedTheme = localStorage.getItem("colorpicker-theme") || "system";
+      let savedEffect = localStorage.getItem("colorpicker-effect") || "system";
+      setTheme(savedTheme);
+      setEffect(savedEffect);
     },
-    [isSettingsOpen]
-  )
+    [isSettingsOpen],
+  );
 
   function updateTheme(newTheme: string): void {
-    setTheme(newTheme)
-    localStorage.setItem("colorpicker-theme", newTheme)
-    let root = document.documentElement
-    root.classList.remove("theme-light", "theme-dark", "theme-system")
-    root.classList.add(`theme-${newTheme}`)
+    setTheme(newTheme);
+    localStorage.setItem("colorpicker-theme", newTheme);
+    let root = document.documentElement;
+    root.classList.remove("theme-light", "theme-dark", "theme-system");
+    root.classList.add(`theme-${newTheme}`);
   }
 
   function updateEffect(newEffect: string): void {
-    setEffect(newEffect)
-    localStorage.setItem("colorpicker-effect", newEffect)
-    let root = document.documentElement
-    root.classList.remove("effect-translucent", "effect-solid", "effect-system")
-    root.classList.add(`effect-${newEffect}`)
+    setEffect(newEffect);
+    localStorage.setItem("colorpicker-effect", newEffect);
+    let root = document.documentElement;
+    root.classList.remove(
+      "effect-translucent",
+      "effect-solid",
+      "effect-system",
+    );
+    root.classList.add(`effect-${newEffect}`);
   }
 
   function handleCopyColor(text: string): void {
-    window.api.copyToClipboard(text)
-    setToast({ show: true, text: t.history.copied.replace("{text}", text) })
+    window.api.copyToClipboard(text);
+    setToast({ show: true, text: t.history.copied.replace("{text}", text) });
     setTimeout(function () {
-      setToast({ show: false, text: "" })
-    }, 1500)
+      setToast({ show: false, text: "" });
+    }, 1500);
   }
 
   function handleRemoveItem(timestamp: number): void {
     window.api.removeHistoryItem(timestamp).then(function (updated) {
-      setHistoryList(updated)
-    })
+      setHistoryList(updated);
+    });
   }
 
   function handleClearHistory(): void {
     window.api.clearHistory().then(function (updated) {
-      setHistoryList(updated)
-      setActiveColor(null)
-    })
+      setHistoryList(updated);
+      setActiveColor(null);
+    });
   }
 
   function handleStartPicker(): void {
-    window.api.startPicker()
+    window.api.startPicker();
   }
 
   if (isSettingsOpen) {
@@ -105,7 +119,7 @@ function History(): React.JSX.Element {
             <button
               className={styles.backButton}
               onClick={function () {
-                setIsSettingsOpen(false)
+                setIsSettingsOpen(false);
               }}
             >
               <svg className={styles.backIcon} viewBox="0 0 24 24">
@@ -121,12 +135,14 @@ function History(): React.JSX.Element {
 
         <div className={styles.settingsContent}>
           <div className={styles.settingsGroup}>
-            <span className={styles.groupTitle}>{t.history.interfaceTheme}</span>
+            <span className={styles.groupTitle}>
+              {t.history.interfaceTheme}
+            </span>
             <div className={styles.optionsGrid}>
               <button
                 className={`${styles.optionCard} ${theme === "light" ? styles.optionActive : ""}`}
                 onClick={function () {
-                  updateTheme("light")
+                  updateTheme("light");
                 }}
               >
                 {t.history.themeLight}
@@ -134,7 +150,7 @@ function History(): React.JSX.Element {
               <button
                 className={`${styles.optionCard} ${theme === "dark" ? styles.optionActive : ""}`}
                 onClick={function () {
-                  updateTheme("dark")
+                  updateTheme("dark");
                 }}
               >
                 {t.history.themeDark}
@@ -142,7 +158,7 @@ function History(): React.JSX.Element {
               <button
                 className={`${styles.optionCard} ${theme === "system" ? styles.optionActive : ""}`}
                 onClick={function () {
-                  updateTheme("system")
+                  updateTheme("system");
                 }}
               >
                 {t.history.themeSystem}
@@ -156,7 +172,7 @@ function History(): React.JSX.Element {
               <button
                 className={`${styles.optionCard} ${effect === "translucent" ? styles.optionActive : ""}`}
                 onClick={function () {
-                  updateEffect("translucent")
+                  updateEffect("translucent");
                 }}
               >
                 {t.history.effectTranslucent}
@@ -164,7 +180,7 @@ function History(): React.JSX.Element {
               <button
                 className={`${styles.optionCard} ${effect === "solid" ? styles.optionActive : ""}`}
                 onClick={function () {
-                  updateEffect("solid")
+                  updateEffect("solid");
                 }}
               >
                 {t.history.effectSolid}
@@ -172,7 +188,7 @@ function History(): React.JSX.Element {
               <button
                 className={`${styles.optionCard} ${effect === "system" ? styles.optionActive : ""}`}
                 onClick={function () {
-                  updateEffect("system")
+                  updateEffect("system");
                 }}
               >
                 {t.history.themeSystem}
@@ -186,7 +202,7 @@ function History(): React.JSX.Element {
               <button
                 className={`${styles.optionCard} ${locale === "en" ? styles.optionActive : ""}`}
                 onClick={function () {
-                  changeLanguage("en")
+                  changeLanguage("en");
                 }}
               >
                 English
@@ -194,7 +210,7 @@ function History(): React.JSX.Element {
               <button
                 className={`${styles.optionCard} ${locale === "pt" ? styles.optionActive : ""}`}
                 onClick={function () {
-                  changeLanguage("pt")
+                  changeLanguage("pt");
                 }}
               >
                 Português
@@ -202,7 +218,7 @@ function History(): React.JSX.Element {
               <button
                 className={`${styles.optionCard} ${locale === "es" ? styles.optionActive : ""}`}
                 onClick={function () {
-                  changeLanguage("es")
+                  changeLanguage("es");
                 }}
               >
                 Español
@@ -211,7 +227,7 @@ function History(): React.JSX.Element {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -245,7 +261,7 @@ function History(): React.JSX.Element {
           <button
             className={styles.settingsButton}
             onClick={function () {
-              setIsSettingsOpen(true)
+              setIsSettingsOpen(true);
             }}
             title={t.history.settings}
           >
@@ -263,9 +279,14 @@ function History(): React.JSX.Element {
           </svg>
           <div className={styles.emptyText}>
             {t.history.emptyHistory}
-            <div className={styles.emptyShortcut}>{t.history.pressShortcut}</div>
+            <div className={styles.emptyShortcut}>
+              {t.history.pressShortcut}
+            </div>
           </div>
-          <button className={styles.emptyPickerButton} onClick={handleStartPicker}>
+          <button
+            className={styles.emptyPickerButton}
+            onClick={handleStartPicker}
+          >
             {t.history.captureColorBtn}
           </button>
         </div>
@@ -274,37 +295,44 @@ function History(): React.JSX.Element {
           <div className={styles.content}>
             <div className={styles.historySection}>
               <div className={styles.sectionHeader}>
-                <span className={styles.sectionTitle}>{t.history.recentColors}</span>
-                <span className={styles.itemCount}>{historyList.length}/20</span>
+                <span className={styles.sectionTitle}>
+                  {t.history.recentColors}
+                </span>
+                <span className={styles.itemCount}>
+                  {historyList.length}/20
+                </span>
               </div>
               <div className={styles.swatchesScroll}>
                 {historyList.map(function (item) {
-                  let isActive = activeColor.timestamp === item.timestamp
+                  let isActive = activeColor.timestamp === item.timestamp;
                   return (
                     <div
                       key={item.timestamp}
                       className={`${styles.swatchItem} ${isActive ? styles.activeSwatch : ""}`}
                       style={{ backgroundColor: item.hex }}
                       onClick={function () {
-                        setActiveColor(item)
+                        setActiveColor(item);
                       }}
                       title={item.hex}
                     />
-                  )
+                  );
                 })}
               </div>
             </div>
 
             <div className={styles.activeColorSection}>
               <div className={styles.activePreviewContainer}>
-                <div className={styles.largeSwatch} style={{ backgroundColor: activeColor.hex }} />
+                <div
+                  className={styles.largeSwatch}
+                  style={{ backgroundColor: activeColor.hex }}
+                />
                 <div className={styles.activeDetails}>
                   <span className={styles.activeHex}>{activeColor.hex}</span>
                   <button
                     className={styles.deleteActiveButton}
                     title={t.history.removeFromHistory}
                     onClick={function () {
-                      handleRemoveItem(activeColor.timestamp)
+                      handleRemoveItem(activeColor.timestamp);
                     }}
                   >
                     <svg className={styles.deleteIcon} viewBox="0 0 24 24">
@@ -322,7 +350,7 @@ function History(): React.JSX.Element {
                     className={styles.copyCardButton}
                     title={t.history.copyHex}
                     onClick={function () {
-                      handleCopyColor(activeColor.hex)
+                      handleCopyColor(activeColor.hex);
                     }}
                   >
                     <svg className={styles.copyIcon} viewBox="0 0 24 24">
@@ -338,7 +366,7 @@ function History(): React.JSX.Element {
                     className={styles.copyCardButton}
                     title={t.history.copyRgb}
                     onClick={function () {
-                      handleCopyColor(activeColor.rgb)
+                      handleCopyColor(activeColor.rgb);
                     }}
                   >
                     <svg className={styles.copyIcon} viewBox="0 0 24 24">
@@ -354,7 +382,7 @@ function History(): React.JSX.Element {
                     className={styles.copyCardButton}
                     title={t.history.copyHsl}
                     onClick={function () {
-                      handleCopyColor(activeColor.hsl)
+                      handleCopyColor(activeColor.hsl);
                     }}
                   >
                     <svg className={styles.copyIcon} viewBox="0 0 24 24">
@@ -366,13 +394,15 @@ function History(): React.JSX.Element {
                 {activeColor.hsv && (
                   <div className={styles.formatCard}>
                     <span className={styles.formatBadge}>HSV</span>
-                    <span className={styles.formatValue}>{activeColor.hsv}</span>
+                    <span className={styles.formatValue}>
+                      {activeColor.hsv}
+                    </span>
                     <button
                       className={styles.copyCardButton}
                       title={t.history.copyHsv}
                       onClick={function () {
                         if (activeColor.hsv) {
-                          handleCopyColor(activeColor.hsv)
+                          handleCopyColor(activeColor.hsv);
                         }
                       }}
                     >
@@ -388,9 +418,11 @@ function History(): React.JSX.Element {
         )
       )}
 
-      <div className={`${styles.toast} ${toast.show ? styles.show : ""}`}>{toast.text}</div>
+      <div className={`${styles.toast} ${toast.show ? styles.show : ""}`}>
+        {toast.text}
+      </div>
     </div>
-  )
+  );
 }
 
-export default History
+export default History;

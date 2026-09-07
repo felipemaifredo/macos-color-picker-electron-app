@@ -9,117 +9,121 @@ import {
   Notification,
   Tray,
   Menu,
-  nativeImage
-} from "electron"
-import { join } from "path"
-import * as fs from "fs"
+  nativeImage,
+} from "electron";
+import { join } from "path";
+import * as fs from "fs";
 
 //Imports
-import { registerGlobalShortcut, unregisterAllShortcuts } from "./shortcuts"
-import { captureActiveScreen } from "./screenCapture"
+import { registerGlobalShortcut, unregisterAllShortcuts } from "./shortcuts";
+import { captureActiveScreen } from "./screenCapture";
 
 //Types
-import { ColorHistoryItem } from "../renderer/types"
+import { ColorHistoryItem } from "../renderer/types";
 
 // Set application name
-app.setName("Mai Color Picker")
+app.setName("Mai Color Picker");
 
 //Consts
-let HISTORY_FILE_PATH = ""
+let HISTORY_FILE_PATH = "";
 
 //Types
 type MainTranslations = {
   tray: {
-    openHistory: string
-    captureColor: string
-    quit: string
-  }
+    openHistory: string;
+    captureColor: string;
+    quit: string;
+  };
   notification: {
-    title: string
-    body: string
-  }
-}
+    title: string;
+    body: string;
+  };
+};
 
 //Funcs
 function getLocale(): "en" | "pt" | "es" {
-  let locale = app.getLocale().toLowerCase()
+  let locale = app.getLocale().toLowerCase();
   if (locale.startsWith("pt")) {
-    return "pt"
+    return "pt";
   }
   if (locale.startsWith("es")) {
-    return "es"
+    return "es";
   }
-  return "en"
+  return "en";
 }
 
 function getTranslations(): MainTranslations {
-  let locale = getLocale()
+  let locale = getLocale();
   let translations = {
     en: {
       tray: {
         openHistory: "Open History",
         captureColor: "Capture Color",
-        quit: "Quit"
+        quit: "Quit",
       },
       notification: {
         title: "Color Copied!",
-        body: "{text} copied to clipboard."
-      }
+        body: "{text} copied to clipboard.",
+      },
     },
     pt: {
       tray: {
         openHistory: "Abrir Histórico",
         captureColor: "Capturar Cor",
-        quit: "Sair"
+        quit: "Sair",
       },
       notification: {
         title: "Cor Copiada!",
-        body: "{text} copiado para a área de transferência."
-      }
+        body: "{text} copiado para a área de transferência.",
+      },
     },
     es: {
       tray: {
         openHistory: "Abrir Historial",
         captureColor: "Capturar Color",
-        quit: "Salir"
+        quit: "Salir",
       },
       notification: {
         title: "¡Color Copiado!",
-        body: "{text} copiado al portapapeles."
-      }
-    }
-  }
-  return translations[locale] || translations.en
+        body: "{text} copiado al portapapeles.",
+      },
+    },
+  };
+  return translations[locale] || translations.en;
 }
 
 function readHistoryFromFile(): ColorHistoryItem[] {
   try {
     if (fs.existsSync(HISTORY_FILE_PATH)) {
-      let data = fs.readFileSync(HISTORY_FILE_PATH, "utf-8")
-      return JSON.parse(data) as ColorHistoryItem[]
+      let data = fs.readFileSync(HISTORY_FILE_PATH, "utf-8");
+      return JSON.parse(data) as ColorHistoryItem[];
     }
   } catch (error) {
-    console.error("Erro ao ler histórico:", error)
+    console.error("Erro ao ler histórico:", error);
   }
-  return []
+  return [];
 }
 
 function saveHistoryToFile(history: ColorHistoryItem[]): void {
   try {
-    fs.writeFileSync(HISTORY_FILE_PATH, JSON.stringify(history, null, 2), "utf-8")
+    fs.writeFileSync(
+      HISTORY_FILE_PATH,
+      JSON.stringify(history, null, 2),
+      "utf-8",
+    );
   } catch (error) {
-    console.error("Erro ao salvar histórico:", error)
+    console.error("Erro ao salvar histórico:", error);
   }
 }
 
-let historyWindow: BrowserWindow | null = null
-let pickerWindow: BrowserWindow | null = null
+let historyWindow: BrowserWindow | null = null;
+let pickerWindow: BrowserWindow | null = null;
 let lastCapture: {
-  imgDataUrl: string
-  bounds: { x: number; y: number; width: number; height: number }
-  initialCursor: { x: number; y: number }
-} | null = null
-let tray: Tray | null = null
+  imgDataUrl: string;
+  bounds: { x: number; y: number; width: number; height: number };
+  initialCursor: { x: number; y: number };
+} | null = null;
+let tray: Tray | null = null;
 
 function createHistoryWindow(): void {
   let win = new BrowserWindow({
@@ -141,115 +145,117 @@ function createHistoryWindow(): void {
       preload: join(__dirname, "../preload/preload.js"),
       sandbox: false,
       contextIsolation: true,
-      nodeIntegration: false
-    }
-  })
+      nodeIntegration: false,
+    },
+  });
 
-  historyWindow = win
+  historyWindow = win;
 
   win.on("ready-to-show", () => {
-    win.show()
-  })
+    win.show();
+  });
 
   win.on("closed", () => {
-    historyWindow = null
-  })
+    historyWindow = null;
+  });
 
-  let devUrl = process.env["ELECTRON_RENDERER_URL"]
+  let devUrl = process.env["ELECTRON_RENDERER_URL"];
   if (devUrl) {
-    win.loadURL(`${devUrl}?page=history`)
+    win.loadURL(`${devUrl}?page=history`);
   } else {
-    win.loadFile(join(__dirname, "../renderer/index.html"), { query: { page: "history" } })
+    win.loadFile(join(__dirname, "../renderer/index.html"), {
+      query: { page: "history" },
+    });
   }
 }
 
 function showHistoryWindow(): void {
   if (historyWindow) {
     if (historyWindow.isMinimized()) {
-      historyWindow.restore()
+      historyWindow.restore();
     }
-    historyWindow.show()
-    historyWindow.focus()
+    historyWindow.show();
+    historyWindow.focus();
   } else {
-    createHistoryWindow()
+    createHistoryWindow();
   }
 }
 
 function createTray(): void {
   let iconPath = app.isPackaged
     ? join(process.resourcesPath, "resources/icon.png")
-    : join(__dirname, "../../resources/icon.png")
+    : join(__dirname, "../../resources/icon.png");
 
   try {
-    let icon = nativeImage.createFromPath(iconPath)
-    let trayIcon = icon.resize({ width: 16, height: 16 })
+    let icon = nativeImage.createFromPath(iconPath);
+    let trayIcon = icon.resize({ width: 16, height: 16 });
 
     if (process.platform === "darwin") {
-      trayIcon.setTemplateImage(true)
+      trayIcon.setTemplateImage(true);
     }
 
-    tray = new Tray(trayIcon)
-    tray.setToolTip("Mai Color Picker")
+    tray = new Tray(trayIcon);
+    tray.setToolTip("Mai Color Picker");
 
-    let t = getTranslations()
+    let t = getTranslations();
     let contextMenu = Menu.buildFromTemplate([
       {
         label: t.tray.openHistory,
         click: function () {
-          showHistoryWindow()
-        }
+          showHistoryWindow();
+        },
       },
       {
         label: t.tray.captureColor,
         click: function () {
-          startColorPicker()
-        }
+          startColorPicker();
+        },
       },
       { type: "separator" },
       {
         label: t.tray.quit,
         click: function () {
-          app.quit()
-        }
-      }
-    ])
+          app.quit();
+        },
+      },
+    ]);
 
-    tray.setContextMenu(contextMenu)
+    tray.setContextMenu(contextMenu);
 
     tray.on("click", function () {
-      showHistoryWindow()
-    })
+      showHistoryWindow();
+    });
   } catch (error) {
-    console.error("Falha ao criar o ícone da bandeja:", error)
+    console.error("Falha ao criar o ícone da bandeja:", error);
   }
 }
 
 async function startColorPicker(): Promise<void> {
-  let status = systemPreferences.getMediaAccessStatus("screen")
+  let status = systemPreferences.getMediaAccessStatus("screen");
   if (status !== "granted") {
     if (historyWindow) {
-      historyWindow.show()
-      historyWindow.webContents.send("permission-status-changed", false)
+      historyWindow.show();
+      historyWindow.webContents.send("permission-status-changed", false);
     }
-    return
+    return;
   }
 
   if (historyWindow) {
-    historyWindow.hide()
+    historyWindow.hide();
   }
 
   try {
     await new Promise(function (resolve) {
-      setTimeout(resolve, 150)
-    })
+      setTimeout(resolve, 150);
+    });
 
-    let capture = await captureActiveScreen()
-    lastCapture = capture
+    let capture = await captureActiveScreen();
+    lastCapture = capture;
 
     if (pickerWindow) {
-      pickerWindow.removeAllListeners("closed")
-      pickerWindow.close()
-      pickerWindow = null
+      pickerWindow.removeAllListeners("closed");
+      pickerWindow.close();
+      pickerWindow = null;
     }
 
     let win = new BrowserWindow({
@@ -272,155 +278,166 @@ async function startColorPicker(): Promise<void> {
         preload: join(__dirname, "../preload/preload.js"),
         sandbox: false,
         contextIsolation: true,
-        nodeIntegration: false
-      }
-    })
+        nodeIntegration: false,
+      },
+    });
 
-    pickerWindow = win
-    win.setAlwaysOnTop(true, "screen-saver")
-    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+    pickerWindow = win;
+    win.setAlwaysOnTop(true, "screen-saver");
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
     win.once("ready-to-show", () => {
-      win.show()
-      win.focus()
-      win.webContents.send("screen-captured", capture.imgDataUrl)
-    })
+      win.show();
+      win.focus();
+      win.webContents.send("screen-captured", capture.imgDataUrl);
+    });
 
     win.on("closed", () => {
-      pickerWindow = null
-      lastCapture = null
+      pickerWindow = null;
+      lastCapture = null;
       if (historyWindow) {
-        historyWindow.show()
+        historyWindow.show();
       }
-    })
+    });
 
-    let devUrl = process.env["ELECTRON_RENDERER_URL"]
+    let devUrl = process.env["ELECTRON_RENDERER_URL"];
     if (devUrl) {
-      win.loadURL(`${devUrl}?page=picker`)
+      win.loadURL(`${devUrl}?page=picker`);
     } else {
-      win.loadFile(join(__dirname, "../renderer/index.html"), { query: { page: "picker" } })
+      win.loadFile(join(__dirname, "../renderer/index.html"), {
+        query: { page: "picker" },
+      });
     }
   } catch (error) {
-    console.error("Falha ao iniciar o Mai Color Picker:", error)
+    console.error("Falha ao iniciar o Mai Color Picker:", error);
     if (historyWindow) {
-      historyWindow.show()
+      historyWindow.show();
     }
   }
 }
 
 function setupIpcHandlers(): void {
   ipcMain.on("start-picker", () => {
-    startColorPicker()
-  })
+    startColorPicker();
+  });
 
   ipcMain.handle("get-screen-capture", () => {
-    return lastCapture
-  })
+    return lastCapture;
+  });
 
   ipcMain.handle("get-history", () => {
-    return readHistoryFromFile()
-  })
+    return readHistoryFromFile();
+  });
 
   ipcMain.handle("remove-history-item", (_event, timestamp: number) => {
-    let history = readHistoryFromFile()
-    let updated = history.filter((item) => item.timestamp !== timestamp)
-    saveHistoryToFile(updated)
+    let history = readHistoryFromFile();
+    let updated = history.filter((item) => item.timestamp !== timestamp);
+    saveHistoryToFile(updated);
     if (historyWindow) {
-      historyWindow.webContents.send("history-updated", updated)
+      historyWindow.webContents.send("history-updated", updated);
     }
-    return updated
-  })
+    return updated;
+  });
 
   ipcMain.handle("clear-history", () => {
-    let empty: ColorHistoryItem[] = []
-    saveHistoryToFile(empty)
+    let empty: ColorHistoryItem[] = [];
+    saveHistoryToFile(empty);
     if (historyWindow) {
-      historyWindow.webContents.send("history-updated", empty)
+      historyWindow.webContents.send("history-updated", empty);
     }
-    return empty
-  })
+    return empty;
+  });
 
   ipcMain.handle("check-permission", () => {
-    return systemPreferences.getMediaAccessStatus("screen") === "granted"
-  })
+    return systemPreferences.getMediaAccessStatus("screen") === "granted";
+  });
 
   ipcMain.on("open-settings", () => {
     shell.openExternal(
-      "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
-    )
-  })
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+    );
+  });
 
   ipcMain.on("copy-to-clipboard", (_event, text: string) => {
-    clipboard.writeText(text)
-  })
+    clipboard.writeText(text);
+  });
 
   ipcMain.on(
     "select-color",
     (
       _event,
-      color: { hex: string; rgb: string; hsl: string; hsv: string; selectedFormatText?: string }
+      color: {
+        hex: string;
+        rgb: string;
+        hsl: string;
+        hsv: string;
+        selectedFormatText?: string;
+      },
     ) => {
-      let textToCopy = color.selectedFormatText || color.hex
-      clipboard.writeText(textToCopy)
+      let textToCopy = color.selectedFormatText || color.hex;
+      clipboard.writeText(textToCopy);
 
-      let history = readHistoryFromFile()
+      let history = readHistoryFromFile();
       let newItem: ColorHistoryItem = {
         hex: color.hex,
         rgb: color.rgb,
         hsl: color.hsl,
         hsv: color.hsv,
-        timestamp: Date.now()
-      }
+        timestamp: Date.now(),
+      };
 
-      let updated = [newItem, ...history].slice(0, 20)
-      saveHistoryToFile(updated)
+      let updated = [newItem, ...history].slice(0, 20);
+      saveHistoryToFile(updated);
 
       if (historyWindow) {
-        historyWindow.webContents.send("history-updated", updated)
+        historyWindow.webContents.send("history-updated", updated);
       }
 
       if (pickerWindow) {
-        pickerWindow.close()
+        pickerWindow.close();
       }
 
-      let t = getTranslations()
+      let t = getTranslations();
       new Notification({
         title: t.notification.title,
         body: t.notification.body.replace("{text}", textToCopy),
-        silent: true
-      }).show()
-    }
-  )
+        silent: true,
+      }).show();
+    },
+  );
 
   ipcMain.on("cancel-selection", () => {
     if (pickerWindow) {
-      pickerWindow.close()
+      pickerWindow.close();
     }
-  })
+  });
 }
 
 //Main
 app.whenReady().then(function () {
-  HISTORY_FILE_PATH = join(app.getPath("userData"), "history.json")
-  setupIpcHandlers()
-  createTray()
-  createHistoryWindow()
+  if (app.dock) {
+    app.dock.show();
+  }
+  HISTORY_FILE_PATH = join(app.getPath("userData"), "history.json");
+  setupIpcHandlers();
+  createTray();
+  createHistoryWindow();
 
   registerGlobalShortcut("CommandOrControl+Shift+C", function () {
-    startColorPicker()
-  })
+    startColorPicker();
+  });
 
   app.on("activate", function () {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createHistoryWindow()
+      createHistoryWindow();
     }
-  })
-})
+  });
+});
 
 app.on("window-all-closed", () => {
   // Keep the app running in the system tray / status bar
-})
+});
 
 app.on("will-quit", () => {
-  unregisterAllShortcuts()
-})
+  unregisterAllShortcuts();
+});
